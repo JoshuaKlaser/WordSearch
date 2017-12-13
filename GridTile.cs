@@ -14,5 +14,10 @@ namespace Random
         {
             Value = value;
         }
+
+        public void SubmitText(string text)
+        {
+            Value = text;
+        }
     }
 }
