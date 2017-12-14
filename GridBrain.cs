@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -44,6 +44,32 @@ namespace Random
                 {
                     return false;
                 }
+            }
+        }
+
+        private int GetMaxEmptyConsecSpace(Enums.Direction dir, int pos)
+        {
+            if (dir == Enums.Direction.Row)
+            {
+                var maxCount = 0;
+                var finalCount = 0;
+
+                foreach (var tile in _grid.Grid[pos])
+                {
+                    if (string.IsNullOrEmpty(tile.Value))
+                    {
+                        maxCount++;
+                    }
+                    else
+                    {
+                        finalCount = maxCount > finalCount ? maxCount : finalCount;
+                        maxCount = 0
+                    }
+                }
+
+                finalCount = maxCount > finalCount ? maxCount : finalCount;
+
+                return finalCount;
             }
         }
     }

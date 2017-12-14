@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +12,7 @@ namespace Random
         public int Width { get; private set; }
 
         private GridBrain _brain;
-        public List<List<GridTile>> _grid;
+        public List<List<GridTile>> Grid { get; private set; }
 
         public Grid(int height, int width)
         {
@@ -26,7 +26,7 @@ namespace Random
 
         private void CreateTiles()
         {
-            _grid = new List<List<GridTile>>(Height);
+            Grid = new List<List<GridTile>>(Height);
 
             for (int i = 0; i < Width; i++)
             {
@@ -37,7 +37,7 @@ namespace Random
                     row.Add(new GridTile(string.Empty));
                 }
 
-                _grid.Add(row);
+                Grid.Add(row);
             }
         }
 
