@@ -12,7 +12,7 @@ namespace Random
         public int Width { get; private set; }
 
         private GridBrain _brain;
-        public List<List<GridTile>> Grid { get; private set; }
+        public List<List<GridTile>> GridData { get; private set; }
 
         public Grid(int height, int width)
         {
@@ -26,18 +26,18 @@ namespace Random
 
         private void CreateTiles()
         {
-            Grid = new List<List<GridTile>>(Height);
+            GridData = new List<List<GridTile>>(Height);
 
-            for (int i = 0; i < Width; i++)
+            for (int i = 0; i < Height; i++)
             {
                 var row = new List<GridTile>(Width);
 
-                for (int q = 0; q < Height; q++)
+                for (int q = 0; q < Width; q++)
                 {
                     row.Add(new GridTile(string.Empty));
                 }
 
-                Grid.Add(row);
+                GridData.Add(row);
             }
         }
 

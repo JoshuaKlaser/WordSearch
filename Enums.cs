@@ -8,6 +8,6 @@ namespace Random
 {
     public class Enums
     {
-        public enum Direction { Row, Column };
+        public enum Direction { Row = 0, Column };
     }
 }

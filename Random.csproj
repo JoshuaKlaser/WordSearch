@@ -40,6 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConsecSpaceValue.cs" />
+    <Compile Include="Enums.cs" />
     <Compile Include="Grid.cs" />
     <Compile Include="GridBrain.cs" />
     <Compile Include="GridColumn.cs" />
