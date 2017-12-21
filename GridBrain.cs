@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
+using Random.Classes;
 
 namespace Random
 {
@@ -20,16 +22,12 @@ namespace Random
         {
             var finalResult = false;
 
-            // random number to determine column or row
-            var rand = new System.Random();
-
-            // random number to determine which row/column to try to enter text.
-            var dir = rand.Next(0, 2);
+            var dir = Rand.GetRandomNumber(0, 2);
 
             if (dir == (int)Enums.Direction.Row)
             {
                 // Row
-                var randomRow = rand.Next(0, _grid.Height - 1);
+                var randomRow = Rand.GetRandomNumber(0, _grid.Height);
 
                 var originalRow = randomRow;
                 var exitLoop = false;
@@ -40,7 +38,7 @@ namespace Random
 
                     // When it can't insert try the next row, moving back to the beginning when it hits the end of the rows.
                     if (!canInsert)
-                        randomRow = randomRow + 1 > _grid.Width ? 0 : randomRow + 1;
+                        randomRow = randomRow + 1 > _grid.Height - 1 ? 0 : randomRow + 1;
 
                     finalResult = canInsert;
 
@@ -58,7 +56,7 @@ namespace Random
             else
             {
                 // Column
-                var randomCol = rand.Next(0, _grid.Height - 1);
+                var randomCol = Rand.GetRandomNumber(0, _grid.Width);
 
                 var originalCol = randomCol;
                 var exitLoop = false;
@@ -69,7 +67,7 @@ namespace Random
 
                     // When it can't insert try the next row, moving back to the beginning when it hits the end of the rows.
                     if (!canInsert)
-                        randomCol = randomCol + 1 > _grid.Width ? 0 : randomCol + 1;
+                        randomCol = randomCol + 1 > _grid.Width - 1 ? 0 : randomCol + 1;
 
                     finalResult = canInsert;
 
@@ -98,8 +96,10 @@ namespace Random
                     return false;
                 }
 
+                var spaces = GetSuitableSpaces(dir, pos, value);//.EmptySpaces;
+
                 // Check if there is any free space that can fit the word.
-                if (value.Length > GetMaxEmptyConsecSpace(dir, pos, value.Length).EmptySpaces)
+                if (value.Length > spaces.EmptySpaces)
                 {
                     return false;
                 }
@@ -114,8 +114,10 @@ namespace Random
                     return false;
                 }
 
+                var spaces = GetSuitableSpaces(dir, pos, value);//.EmptySpaces;
+
                 // Check if there is any free space that can fit the word.
-                if (value.Length > GetMaxEmptyConsecSpace(dir, pos, value.Length).EmptySpaces)
+                if (value.Length > spaces.EmptySpaces)
                 {
                     return false;
                 }
@@ -124,12 +126,185 @@ namespace Random
             }
         }
 
-        private ConsecSpaceValue GetMaxEmptyConsecSpace(Enums.Direction dir, int pos, int wordLength)
+        private InsertionSpace GetSuitableSpaces(Enums.Direction dir, int pos, string word)
         {
+            var emptySpace = GetEmptyConsecSpace(dir, pos, word.Length);
+            var joinedSpace = GetJoinedSpace(dir, pos, word);
+
+            if (emptySpace == null && joinedSpace != null)
+            {
+                return joinedSpace;
+            }
+
+            if (emptySpace != null && joinedSpace == null)
+            {
+                return emptySpace;
+            }
+
+            if (emptySpace != null && joinedSpace != null)
+            {
+                var num = Rand.GetRandomNumber(0, 2);
+
+                num = 1;
+
+                if (num == 0)
+                    return emptySpace;
+                else
+                    return joinedSpace;
+            }
+
+            return new InsertionSpace(-1,0,0, Enums.InsertionSpaceType.Empty);
+        }
+
+        private JoinedInsertionSpace GetJoinedSpace(Enums.Direction dir, int pos, string word)
+        {
+            var validatedEntries = new List<JoinedInsertionSpace>();
+
+            if (dir == Enums.Direction.Row)
+            {
+                // Get list of letters in row and letters in word.
+                // If there are matching letters, then we try to place the word so that the letters cross over.
+                // Check each tile the new word will go on and verify if space is empty or value matches with letter going on it.
+
+                var currentLetters = new List<TileData>();
+
+                for (var i = 0; i < _grid.Width; i++)
+                {
+                    var tile = _grid.GridData[pos][i];
+
+                    if (!string.IsNullOrEmpty(tile.Value))
+                    {
+                        currentLetters.Add(new TileData(tile.Value, i));
+                    }
+                }
+
+                if (currentLetters.Count == 0)
+                {
+                    return null;
+                }
+
+                for (var i = 0; i < currentLetters.Count; i++)
+                {
+                    var matchingLetterIndex = -1;
+
+                    // Looping in case of the same letter appearing multiple times in the word.
+                    do
+                    {
+                        matchingLetterIndex = word.IndexOf(currentLetters[i].Value, matchingLetterIndex + 1, StringComparison.Ordinal);
+
+                        if (matchingLetterIndex == -1)
+                            break;
+
+                        var startingPoint = currentLetters[i].Position - matchingLetterIndex;
+
+                        if (startingPoint < 0)
+                            continue;
+
+                        if (startingPoint + word.Length > _grid.Width)
+                            continue;
+
+                        var wordValidated = true;
+
+                        // Check each space to see if it fits.
+                        for (int q = startingPoint, w = 0; q < word.Length - 1; q++, w++)
+                        {
+                            var tile = _grid.GridData[pos][q];
+
+                            if (string.IsNullOrEmpty(tile.Value)) continue;
+                            if (tile.Value == word[w].ToString()) continue;
+                            wordValidated = false;
+                            break;
+                        }
+
+                        if (wordValidated)
+                        {
+                            validatedEntries.Add(new JoinedInsertionSpace(startingPoint, word.Length));
+                        }
+
+                    } while (true);
+                }
+            }
+            else
+            {
+                // Get list of letters in row and letters in word.
+                // If there are matching letters, then we try to place the word so that the letters cross over.
+                // Check each tile the new word will go on and verify if space is empty or value matches with letter going on it.
+
+                var currentLetters = new List<TileData>();
+
+                for (var i = 0; i < _grid.Height; i++)
+                {
+                    var tile = _grid.GridData[i][pos];
+
+                    if (!string.IsNullOrEmpty(tile.Value))
+                    {
+                        currentLetters.Add(new TileData(tile.Value, i));
+                    }
+                }
+
+                if (currentLetters.Count == 0)
+                {
+                    return null;
+                }
+
+                for (var i = 0; i < currentLetters.Count; i++)
+                {
+                    var matchingLetterIndex = -1;
+
+                    // Looping in case of the same letter appearing multiple times in the word.
+                    do
+                    {
+                        matchingLetterIndex = word.IndexOf(currentLetters[i].Value, matchingLetterIndex + 1, StringComparison.Ordinal);
+
+                        if (matchingLetterIndex == -1)
+                            break;
+
+                        var startingPoint = currentLetters[i].Position - matchingLetterIndex;
+
+                        if (startingPoint < 0)
+                            continue;
+
+                        if (startingPoint + word.Length > _grid.Height)
+                            continue;
+
+                        var wordValidated = true;
+
+                        // Check each space to see if it fits.
+                        for (int q = startingPoint, w = 0; q < word.Length - 1; q++, w++)
+                        {
+                            var tile = _grid.GridData[q][pos];
+
+                            if (string.IsNullOrEmpty(tile.Value)) continue;
+                            if (tile.Value == word[w].ToString()) continue;
+                            wordValidated = false;
+                            break;
+                        }
+
+                        if (wordValidated)
+                        {
+                            validatedEntries.Add(new JoinedInsertionSpace(startingPoint, word.Length));
+                        }
+
+                    } while (true);
+                }
+            }
+
+            if (validatedEntries.Count == 0)
+                return null;
+
+            var rand = new System.Random();
+
+            return validatedEntries[Rand.GetRandomNumber(0, validatedEntries.Count)];
+        }
+
+        private ConsecEmptyInsertionSpace GetEmptyConsecSpace(Enums.Direction dir, int pos, int wordLength)
+        {
+            var values = new List<ConsecEmptyInsertionSpace>();
+
             if (dir == Enums.Direction.Row)
             {
                 var maxCount = 0;
-                var values = new List<ConsecSpaceValue>();
+                
                 var startPoint = 0;
 
                 for (var i = 0; i < _grid.GridData[pos].Count; i++)
@@ -142,21 +317,21 @@ namespace Random
                     }
                     else
                     {
-                        values.Add(new ConsecSpaceValue(startPoint, maxCount, wordLength));
+                        values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
 
                         maxCount = 0;
                         startPoint = i + 1;
                     }
                 }
 
-                values.Add(new ConsecSpaceValue(startPoint, maxCount, wordLength));
-
-                return values.OrderByDescending(csv => csv.EmptySpaces).First();
+                if (wordLength <= maxCount)
+                {
+                    values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                }
             }
             else
             {
                 var maxCount = 0;
-                var values = new List<ConsecSpaceValue>();
                 var startPoint = 0;
 
                 for (var i = 0; i < _grid.Height; i++)
@@ -169,24 +344,30 @@ namespace Random
                     }
                     else
                     {
-                        values.Add(new ConsecSpaceValue(startPoint, maxCount, wordLength));
+                        values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
 
                         maxCount = 0;
                         startPoint = i + 1;
                     }
                 }
 
-                values.Add(new ConsecSpaceValue(startPoint, maxCount, wordLength));
-
-                return values.OrderByDescending(csv => csv.EmptySpaces).First();
+                if (wordLength <= maxCount)
+                {
+                    values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                }
             }
+
+            if (values.Count == 0)
+                return null;
+
+            return values.OrderByDescending(csv => csv.EmptySpaces).First();
         }
 
         private bool PerformInsert(Enums.Direction dir, int pos, string value)
         {
             if (dir == Enums.Direction.Row)
             {
-                var startingPosition = GetMaxEmptyConsecSpace(dir, pos, value.Length);
+                var startingPosition = GetSuitableSpaces(dir, pos, value);
 
                 for (int i = 0, q = startingPosition.GetStartPosition(true); i < value.Length; i++, q++)
                 {
@@ -195,7 +376,7 @@ namespace Random
             }
             else
             {
-                var startingPosition = GetMaxEmptyConsecSpace(dir, pos, value.Length);
+                var startingPosition = GetSuitableSpaces(dir, pos, value);
 
                 for (int i = 0, q = startingPosition.GetStartPosition(true); i < value.Length; i++, q++)
                 {
