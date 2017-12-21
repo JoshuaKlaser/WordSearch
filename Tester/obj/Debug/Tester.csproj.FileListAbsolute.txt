@@ -1,0 +1,11 @@
+D:\Miscellaneous\RepoTest\Tester\bin\Debug\Tester.exe.config
+D:\Miscellaneous\RepoTest\Tester\bin\Debug\Tester.exe
+D:\Miscellaneous\RepoTest\Tester\bin\Debug\Tester.pdb
+D:\Miscellaneous\RepoTest\Tester\bin\Debug\Random.dll
+D:\Miscellaneous\RepoTest\Tester\bin\Debug\Random.pdb
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.csprojResolveAssemblyReference.cache
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.Form1.resources
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.Properties.Resources.resources
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.csproj.GenerateResource.Cache
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.exe
+D:\Miscellaneous\RepoTest\Tester\obj\Debug\Tester.pdb
