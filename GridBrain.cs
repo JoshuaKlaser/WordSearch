@@ -145,8 +145,6 @@ namespace Random
             {
                 var num = Rand.GetRandomNumber(0, 2);
 
-                num = 1;
-
                 if (num == 0)
                     return emptySpace;
                 else
@@ -206,7 +204,7 @@ namespace Random
                         var wordValidated = true;
 
                         // Check each space to see if it fits.
-                        for (int q = startingPoint, w = 0; q < word.Length - 1; q++, w++)
+                        for (int q = startingPoint, w = 0; w < word.Length; q++, w++)
                         {
                             var tile = _grid.GridData[pos][q];
 
@@ -270,7 +268,7 @@ namespace Random
                         var wordValidated = true;
 
                         // Check each space to see if it fits.
-                        for (int q = startingPoint, w = 0; q < word.Length - 1; q++, w++)
+                        for (int q = startingPoint, w = 0; w < word.Length; q++, w++)
                         {
                             var tile = _grid.GridData[q][pos];
 
@@ -317,7 +315,10 @@ namespace Random
                     }
                     else
                     {
-                        values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                        if (wordLength <= maxCount)
+                        {
+                            values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                        }
 
                         maxCount = 0;
                         startPoint = i + 1;
@@ -344,7 +345,10 @@ namespace Random
                     }
                     else
                     {
-                        values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                        if (wordLength <= maxCount)
+                        {
+                            values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
+                        }
 
                         maxCount = 0;
                         startPoint = i + 1;
