@@ -32,6 +32,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -41,8 +42,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\Rand.cs" />
+    <Compile Include="Classes\SubmissionResponse.cs" />
     <Compile Include="Classes\TileData.cs" />
+    <Compile Include="Classes\WordData.cs" />
     <Compile Include="ConsecEmptyInsertionSpace.cs" />
+    <Compile Include="DirectionalProcess\DirectionalProcess.cs" />
+    <Compile Include="DirectionalProcess\DirectionalProcessColumn.cs" />
+    <Compile Include="DirectionalProcess\DirectionalProcessDiagonal.cs" />
+    <Compile Include="DirectionalProcess\DirectionalProcessRow.cs" />
     <Compile Include="InsertionSpace.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="Grid.cs" />

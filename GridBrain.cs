@@ -9,8 +9,9 @@ using Random.Classes;
 
 namespace Random
 {
-    public class GridBrain
+    internal sealed class GridBrain
     {
+        private static System.Random _random = new System.Random();
         private Grid _grid;
 
         public GridBrain(Grid grid)
@@ -18,118 +19,114 @@ namespace Random
             _grid = grid;
         }
 
-        public bool SubmitText(string text)
+        public SubmissionResponse SubmitText(string text)
         {
-            var finalResult = false;
+            SubmissionResponse finalResult = null;
 
-            var dir = Rand.GetRandomNumber(0, 2);
+            var dirProcess = GetRandomDirectionalProcess();
+            var originalProcess = dirProcess;
 
-            if (dir == (int)Enums.Direction.Row)
+            var retry = false;
+            var retryCountMax = 3;
+            var retryCount = 0;
+
+            do
             {
-                // Row
-                var randomRow = Rand.GetRandomNumber(0, _grid.Height);
+                finalResult = SubmitTextInternal(dirProcess, _grid.Width, text);
 
-                var originalRow = randomRow;
-                var exitLoop = false;
+                // If it inserted successfully, then do not retry.
+                retry = !finalResult.Success;
 
-                do
+                if (retry)
                 {
-                    var canInsert = CanInsert(Enums.Direction.Row, randomRow, text);
+                    var nextDir = dirProcess.GetNextDirection();
 
-                    // When it can't insert try the next row, moving back to the beginning when it hits the end of the rows.
-                    if (!canInsert)
-                        randomRow = randomRow + 1 > _grid.Height - 1 ? 0 : randomRow + 1;
+                    // If we've reached the original direction in the retry loop, then quit.
+                    if (nextDir == originalProcess.Direction)
+                    {
+                        retryCount++;
 
-                    finalResult = canInsert;
+                        if (retryCount == retryCountMax)
+                            break;
+                    }
 
-                    // Exit loop if it can insert, or if we've tried every row and gone back to the original row.
-                    exitLoop = canInsert || originalRow == randomRow;
-
-                } while (!exitLoop);
-
-                // If validation passes, then insert it.
-                if (finalResult)
-                {
-                    PerformInsert(Enums.Direction.Row, randomRow, text);
+                    dirProcess = GetDirectionProcess(nextDir);
                 }
-            }
-            else
-            {
-                // Column
-                var randomCol = Rand.GetRandomNumber(0, _grid.Width);
 
-                var originalCol = randomCol;
-                var exitLoop = false;
-
-                do
-                {
-                    var canInsert = CanInsert(Enums.Direction.Column, randomCol, text);
-
-                    // When it can't insert try the next row, moving back to the beginning when it hits the end of the rows.
-                    if (!canInsert)
-                        randomCol = randomCol + 1 > _grid.Width - 1 ? 0 : randomCol + 1;
-
-                    finalResult = canInsert;
-
-                    // Exit loop if it can insert, or if we've tried every row and gone back to the original row.
-                    exitLoop = canInsert || originalCol == randomCol;
-
-                } while (!exitLoop);
-
-                // If validation passes, then insert it.
-                if (finalResult)
-                {
-                    PerformInsert(Enums.Direction.Column, randomCol, text);
-                }
-            }
+            } while (retry);
 
             return finalResult;
         }
 
-        private bool CanInsert(Enums.Direction dir, int pos, string value)
+        private DirectionalProcess GetRandomDirectionalProcess()
         {
-            if (dir == Enums.Direction.Row)
-            {
-                // Check if text value length is greater than actual space.
-                if (value.Length > _grid.Width)
-                {
-                    return false;
-                }
-
-                var spaces = GetSuitableSpaces(dir, pos, value);//.EmptySpaces;
-
-                // Check if there is any free space that can fit the word.
-                if (value.Length > spaces.EmptySpaces)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            else
-            {
-                // Check if text value length is greater than actual space.
-                if (value.Length > _grid.Height)
-                {
-                    return false;
-                }
-
-                var spaces = GetSuitableSpaces(dir, pos, value);//.EmptySpaces;
-
-                // Check if there is any free space that can fit the word.
-                if (value.Length > spaces.EmptySpaces)
-                {
-                    return false;
-                }
-
-                return true;
-            }
+            var dir = Rand.GetRandomNumber(0, DirectionalProcess.GetDirectionalProcessLimit());
+            
+            return GetDirectionProcess((Enums.Direction)dir);
         }
 
-        private InsertionSpace GetSuitableSpaces(Enums.Direction dir, int pos, string word)
+        private DirectionalProcess GetDirectionProcess(Enums.Direction dir)
         {
-            var emptySpace = GetEmptyConsecSpace(dir, pos, word.Length);
-            var joinedSpace = GetJoinedSpace(dir, pos, word);
+            DirectionalProcess dirProcess = null;
+
+            switch ((Enums.Direction)dir)
+            {
+                case Enums.Direction.Row:
+                    dirProcess = new DirectionalProcessRow(_grid);
+                    break;
+                case Enums.Direction.Column:
+                    dirProcess = new DirectionalProcessColumn(_grid);
+                    break;
+                    //case Enums.Direction.Diagonal:
+                    //    dirProcess = new DirectionalProcessDiagonal(_grid);
+                    //break;
+            }
+
+            return dirProcess;
+        }
+
+        private SubmissionResponse SubmitTextInternal(DirectionalProcess dirProcess, int sizeValue, string text)
+        {
+            var finalResult = false;
+            WordData wordData = null;
+
+            var originalCol = dirProcess.StartRowCol;
+            var iterateCol = originalCol;
+
+            var exitLoop = false;
+
+            InsertionSpace space = null;
+
+            do
+            {
+                space = GetSuitableSpaces(dirProcess, iterateCol, text);
+
+                var canInsert = space != null && text.Length <= space.EmptySpaces;
+
+                // When it can't insert try the next row, moving back to the beginning when it hits the end of the rows.
+                if (!canInsert)
+                    iterateCol = iterateCol + 1 > sizeValue - 1 ? 0 : iterateCol + 1;
+
+                finalResult = canInsert;
+
+                // Exit loop if it can insert, or if we've tried every row and gone back to the original row.
+                exitLoop = canInsert || originalCol == iterateCol;
+
+            } while (!exitLoop);
+
+            // If validation passes, then insert it.
+            if (finalResult)
+            {
+                wordData = PerformInsert(dirProcess, text, space);
+            }
+
+            return new SubmissionResponse(finalResult, wordData);
+        }
+
+        private InsertionSpace GetSuitableSpaces(DirectionalProcess dirProcess, int pos, string word)
+        {
+            var emptySpace = GetEmptyConsecSpace(dirProcess, word);
+            var joinedSpace = GetJoinedSpace(dirProcess, word);
 
             if (emptySpace == null && joinedSpace != null)
             {
@@ -154,212 +151,19 @@ namespace Random
             return new InsertionSpace(-1,0,0, Enums.InsertionSpaceType.Empty);
         }
 
-        private JoinedInsertionSpace GetJoinedSpace(Enums.Direction dir, int pos, string word)
+        private JoinedInsertionSpace GetJoinedSpace(DirectionalProcess dirProcess, string word)
         {
-            var validatedEntries = new List<JoinedInsertionSpace>();
-
-            if (dir == Enums.Direction.Row)
-            {
-                // Get list of letters in row and letters in word.
-                // If there are matching letters, then we try to place the word so that the letters cross over.
-                // Check each tile the new word will go on and verify if space is empty or value matches with letter going on it.
-
-                var currentLetters = new List<TileData>();
-
-                for (var i = 0; i < _grid.Width; i++)
-                {
-                    var tile = _grid.GridData[pos][i];
-
-                    if (!string.IsNullOrEmpty(tile.Value))
-                    {
-                        currentLetters.Add(new TileData(tile.Value, i));
-                    }
-                }
-
-                if (currentLetters.Count == 0)
-                {
-                    return null;
-                }
-
-                for (var i = 0; i < currentLetters.Count; i++)
-                {
-                    var matchingLetterIndex = -1;
-
-                    // Looping in case of the same letter appearing multiple times in the word.
-                    do
-                    {
-                        matchingLetterIndex = word.IndexOf(currentLetters[i].Value, matchingLetterIndex + 1, StringComparison.Ordinal);
-
-                        if (matchingLetterIndex == -1)
-                            break;
-
-                        var startingPoint = currentLetters[i].Position - matchingLetterIndex;
-
-                        if (startingPoint < 0)
-                            continue;
-
-                        if (startingPoint + word.Length > _grid.Width)
-                            continue;
-
-                        var wordValidated = true;
-
-                        // Check each space to see if it fits.
-                        for (int q = startingPoint, w = 0; w < word.Length; q++, w++)
-                        {
-                            var tile = _grid.GridData[pos][q];
-
-                            if (string.IsNullOrEmpty(tile.Value)) continue;
-                            if (tile.Value == word[w].ToString()) continue;
-                            wordValidated = false;
-                            break;
-                        }
-
-                        if (wordValidated)
-                        {
-                            validatedEntries.Add(new JoinedInsertionSpace(startingPoint, word.Length));
-                        }
-
-                    } while (true);
-                }
-            }
-            else
-            {
-                // Get list of letters in row and letters in word.
-                // If there are matching letters, then we try to place the word so that the letters cross over.
-                // Check each tile the new word will go on and verify if space is empty or value matches with letter going on it.
-
-                var currentLetters = new List<TileData>();
-
-                for (var i = 0; i < _grid.Height; i++)
-                {
-                    var tile = _grid.GridData[i][pos];
-
-                    if (!string.IsNullOrEmpty(tile.Value))
-                    {
-                        currentLetters.Add(new TileData(tile.Value, i));
-                    }
-                }
-
-                if (currentLetters.Count == 0)
-                {
-                    return null;
-                }
-
-                for (var i = 0; i < currentLetters.Count; i++)
-                {
-                    var matchingLetterIndex = -1;
-
-                    // Looping in case of the same letter appearing multiple times in the word.
-                    do
-                    {
-                        matchingLetterIndex = word.IndexOf(currentLetters[i].Value, matchingLetterIndex + 1, StringComparison.Ordinal);
-
-                        if (matchingLetterIndex == -1)
-                            break;
-
-                        var startingPoint = currentLetters[i].Position - matchingLetterIndex;
-
-                        if (startingPoint < 0)
-                            continue;
-
-                        if (startingPoint + word.Length > _grid.Height)
-                            continue;
-
-                        var wordValidated = true;
-
-                        // Check each space to see if it fits.
-                        for (int q = startingPoint, w = 0; w < word.Length; q++, w++)
-                        {
-                            var tile = _grid.GridData[q][pos];
-
-                            if (string.IsNullOrEmpty(tile.Value)) continue;
-                            if (tile.Value == word[w].ToString()) continue;
-                            wordValidated = false;
-                            break;
-                        }
-
-                        if (wordValidated)
-                        {
-                            validatedEntries.Add(new JoinedInsertionSpace(startingPoint, word.Length));
-                        }
-
-                    } while (true);
-                }
-            }
+            var validatedEntries = dirProcess.GetJoinedSpace(word);
 
             if (validatedEntries.Count == 0)
                 return null;
 
-            var rand = new System.Random();
-
             return validatedEntries[Rand.GetRandomNumber(0, validatedEntries.Count)];
         }
 
-        private ConsecEmptyInsertionSpace GetEmptyConsecSpace(Enums.Direction dir, int pos, int wordLength)
+        private ConsecEmptyInsertionSpace GetEmptyConsecSpace(DirectionalProcess dirProcess, string word)
         {
-            var values = new List<ConsecEmptyInsertionSpace>();
-
-            if (dir == Enums.Direction.Row)
-            {
-                var maxCount = 0;
-                
-                var startPoint = 0;
-
-                for (var i = 0; i < _grid.GridData[pos].Count; i++)
-                {
-                    var tile = _grid.GridData[pos][i];
-
-                    if (string.IsNullOrEmpty(tile.Value))
-                    {
-                        maxCount++;
-                    }
-                    else
-                    {
-                        if (wordLength <= maxCount)
-                        {
-                            values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
-                        }
-
-                        maxCount = 0;
-                        startPoint = i + 1;
-                    }
-                }
-
-                if (wordLength <= maxCount)
-                {
-                    values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
-                }
-            }
-            else
-            {
-                var maxCount = 0;
-                var startPoint = 0;
-
-                for (var i = 0; i < _grid.Height; i++)
-                {
-                    var tile = _grid.GridData[i][pos];
-
-                    if (string.IsNullOrEmpty(tile.Value))
-                    {
-                        maxCount++;
-                    }
-                    else
-                    {
-                        if (wordLength <= maxCount)
-                        {
-                            values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
-                        }
-
-                        maxCount = 0;
-                        startPoint = i + 1;
-                    }
-                }
-
-                if (wordLength <= maxCount)
-                {
-                    values.Add(new ConsecEmptyInsertionSpace(startPoint, maxCount, wordLength));
-                }
-            }
+            var values = dirProcess.GetEmptyConsecSpace(word);
 
             if (values.Count == 0)
                 return null;
@@ -367,28 +171,26 @@ namespace Random
             return values.OrderByDescending(csv => csv.EmptySpaces).First();
         }
 
-        private bool PerformInsert(Enums.Direction dir, int pos, string value)
+        private WordData PerformInsert(DirectionalProcess dirProcess, string value, InsertionSpace space)
         {
-            if (dir == Enums.Direction.Row)
-            {
-                var startingPosition = GetSuitableSpaces(dir, pos, value);
+            return dirProcess.PerformInsert(space, value);
+        }
 
-                for (int i = 0, q = startingPosition.GetStartPosition(true); i < value.Length; i++, q++)
+        public void FillWithRandomLetters()
+        {
+            foreach (var row in _grid.GridData)
+            {
+                foreach (var tile in row)
                 {
-                    _grid.GridData[pos][q].SubmitText(value[i].ToString());
+                    if (string.IsNullOrEmpty(tile.Value))
+                    {
+                        var randomNum = _random.Next(0, 26);
+                        var randomAlpha = (char)('a' + randomNum);
+
+                        tile.SubmitText(randomAlpha.ToString());
+                    }
                 }
             }
-            else
-            {
-                var startingPosition = GetSuitableSpaces(dir, pos, value);
-
-                for (int i = 0, q = startingPosition.GetStartPosition(true); i < value.Length; i++, q++)
-                {
-                    _grid.GridData[q][pos].SubmitText(value[i].ToString());
-                }
-            }
-
-            return false;
         }
     }
 }

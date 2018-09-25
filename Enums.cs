@@ -8,8 +8,11 @@ namespace Random
 {
     public class Enums
     {
+        //public enum Direction { Row = 0, Column, Diagonal };
         public enum Direction { Row = 0, Column };
 
-        public enum InsertionSpaceType { Empty = 0, Joined }
+        public enum InsertionSpaceType { Empty = 0, Joined };
+
+        public enum DiagonalDirection { Up, Down };
     }
 }

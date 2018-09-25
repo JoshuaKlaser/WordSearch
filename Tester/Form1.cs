@@ -37,6 +37,8 @@ namespace Tester
                 Thread.Sleep(80);
             }
 
+            grid.GenerateGrid(3, true);
+
             panel1.Controls.Clear();
 
             for (int i = 0; i < grid.Height; i++)
